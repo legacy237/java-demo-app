@@ -114,9 +114,6 @@ module "eks" {
     vpc-cni = {
       most_recent = true
     }
-    aws-load-balancer-controller = {
-      most_recent = true
-    }
   }
 
   # IAM for service accounts
@@ -142,4 +139,35 @@ module "lb_controller_role" {
   }
 
   tags = var.tags
+}
+
+# Install AWS Load Balancer Controller
+resource "helm_release" "aws_load_balancer_controller" {
+  depends_on = [module.eks, module.lb_controller_role]
+  
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  version    = "1.4.6"
+
+  set {
+    name  = "clusterName"
+    value = var.cluster_name
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.lb_controller_role.iam_role_arn
+  }
 }
